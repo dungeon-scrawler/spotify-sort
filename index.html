@@ -1,0 +1,1824 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Spotify Song & Album Sorter — SMART Architecture</title>
+    <script src="https://open.spotify.com/embed/iframe-api/v1" async></script>
+    <style>
+        :root {
+            --bg-color: #121212;
+            --card-bg: #181818;
+            --accent-color: #1DB954;
+            --text-color: #FFFFFF;
+            --text-subdued: #B3B3B3;
+            --border-radius: 12px;
+        }
+
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+        }
+
+        body {
+            background-color: var(--bg-color);
+            color: var(--text-color);
+            min-height: 100vh;
+            display: flex;
+            justify-content: center;
+            padding: 2rem 1rem;
+        }
+
+        .container {
+            width: 100%;
+            max-width: 1080px;
+            position: relative;
+        }
+
+        header {
+            text-align: center;
+            margin-bottom: 2rem;
+            position: relative;
+        }
+
+        h1 {
+            font-size: 2rem;
+            margin-bottom: 0.5rem;
+            color: var(--accent-color);
+        }
+
+        .subtitle {
+            color: var(--text-subdued);
+            font-size: 0.95rem;
+        }
+
+        .view {
+            display: block;
+        }
+
+        .hidden {
+            display: none !important;
+        }
+
+        .settings-gear-btn {
+            position: absolute;
+            top: 0;
+            right: 0;
+            background: #222;
+            border: 1px solid #333;
+            color: var(--text-subdued);
+            width: 40px;
+            height: 40px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            font-size: 1.2rem;
+        }
+
+        .settings-gear-btn:hover {
+            background: #333;
+            color: var(--text-color);
+            border-color: var(--accent-color);
+        }
+
+        .modal-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.7);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            z-index: 1000;
+            opacity: 0;
+            pointer-events: none;
+            transition: opacity 0.2s ease;
+        }
+
+        .modal-overlay.active {
+            opacity: 1;
+            pointer-events: auto;
+        }
+
+        .modal-card {
+            background: var(--card-bg);
+            border: 1px solid #333;
+            padding: 2rem;
+            border-radius: var(--border-radius);
+            width: 100%;
+            max-width: 420px;
+            box-shadow: 0 12px 32px rgba(0, 0, 0, 0.6);
+        }
+
+        .modal-title {
+            font-size: 1.2rem;
+            font-weight: bold;
+            margin-bottom: 1rem;
+            color: var(--accent-color);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .form-group {
+            margin-bottom: 1.2rem;
+        }
+
+        .form-label {
+            display: block;
+            font-size: 0.85rem;
+            color: var(--text-subdued);
+            margin-bottom: 0.4rem;
+        }
+
+        .select-input {
+            width: 100%;
+            background: #222;
+            border: 1px solid #444;
+            color: #fff;
+            padding: 0.6rem;
+            border-radius: 6px;
+            font-size: 0.95rem;
+        }
+
+        .input-card {
+            background: var(--card-bg);
+            padding: 2rem;
+            border-radius: var(--border-radius);
+            box-shadow: 0 8px 24px rgba(0, 0, 0, 0.5);
+        }
+
+        textarea {
+            width: 100%;
+            height: 140px;
+            background: #222;
+            border: 1px solid #333;
+            border-radius: 8px;
+            color: #fff;
+            padding: 1rem;
+            margin-bottom: 1rem;
+        }
+
+        .bookmarklet-box {
+            background: #222;
+            border: 1px dashed var(--accent-color);
+            padding: 1rem;
+            border-radius: 8px;
+            margin-bottom: 1.5rem;
+            text-align: center;
+        }
+
+        .bookmarklet-btn {
+            display: inline-block;
+            background: var(--accent-color);
+            color: #000;
+            padding: 0.5rem 1rem;
+            border-radius: 20px;
+            font-weight: bold;
+            text-decoration: none;
+            margin-top: 0.5rem;
+            cursor: grab;
+        }
+
+        .resume-banner {
+            background: #1e2a22;
+            border: 1px solid var(--accent-color);
+            border-radius: 8px;
+            padding: 1rem;
+            margin-bottom: 1.5rem;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+        }
+
+        .btn {
+            background-color: var(--accent-color);
+            color: #000;
+            border: none;
+            padding: 0.8rem 2rem;
+            font-weight: bold;
+            font-size: 1rem;
+            border-radius: 50px;
+            cursor: pointer;
+            transition: transform 0.1s ease;
+        }
+
+        .btn:hover {
+            background-color: #1ed760;
+            transform: scale(1.02);
+        }
+
+        .btn-secondary {
+            background-color: #333;
+            color: #fff;
+            margin-left: 0.5rem;
+        }
+
+        .btn-secondary:hover {
+            background-color: #444;
+        }
+
+        .btn-danger {
+            background-color: #aa2222;
+            color: #fff;
+        }
+
+        .btn-danger:hover {
+            background-color: #cc3333;
+        }
+
+        .sort-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 1rem;
+        }
+
+        .hotkey-badge {
+            background: #333;
+            color: var(--accent-color);
+            padding: 0.2rem 0.6rem;
+            border-radius: 4px;
+            font-size: 0.85rem;
+            margin-left: 0.5rem;
+            border: 1px solid #444;
+        }
+
+        .progress-bar-container {
+            width: 100%;
+            background-color: #222;
+            height: 8px;
+            border-radius: 4px;
+            margin-bottom: 1.5rem;
+            overflow: hidden;
+        }
+
+        .progress-bar {
+            height: 100%;
+            background-color: var(--accent-color);
+            width: 0%;
+            transition: width 0.3s ease;
+        }
+
+        .sort-layout {
+            display: grid;
+            grid-template-columns: 360px 1fr;
+            gap: 1.5rem;
+            align-items: start;
+        }
+
+        @media (max-width: 860px) {
+            .sort-layout {
+                grid-template-columns: 1fr;
+            }
+        }
+
+        .sidebar {
+            background: var(--card-bg);
+            border-radius: var(--border-radius);
+            padding: 1rem;
+            height: 520px;
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+            border: 1px solid #282828;
+        }
+
+        .sidebar-header {
+            margin-bottom: 0.75rem;
+            padding-bottom: 0.6rem;
+            border-bottom: 1px solid #333;
+        }
+
+        .sidebar-title {
+            font-weight: bold;
+            font-size: 0.95rem;
+            color: var(--text-color);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .sidebar-stage-badge {
+            display: inline-block;
+            background: #222;
+            color: var(--accent-color);
+            font-size: 0.75rem;
+            padding: 0.2rem 0.6rem;
+            border-radius: 12px;
+            font-weight: 600;
+            margin-top: 0.35rem;
+            border: 1px solid #333;
+        }
+
+        .sidebar-scroll-area {
+            overflow-y: auto;
+            flex-grow: 1;
+            padding-right: 0.25rem;
+        }
+
+        .hover-scrollbar {
+            overflow-y: auto;
+            scrollbar-width: thin;
+            scrollbar-color: rgba(255, 255, 255, 0.25) transparent;
+        }
+
+        .group-header {
+            font-size: 0.72rem;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+            font-weight: 700;
+            color: var(--text-subdued);
+            margin-bottom: 0.4rem;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .subgroups-row {
+            display: flex;
+            flex-direction: row;
+            gap: 0.5rem;
+            margin-bottom: 0.6rem;
+        }
+
+        .subgroup-card {
+            flex: 1;
+            min-width: 0;
+            border-radius: 8px;
+            padding: 0.6rem;
+            border: 1px solid transparent;
+            display: flex;
+            flex-direction: column;
+            max-height: 220px;
+        }
+
+        .subgroup-scroll-pane {
+            flex-grow: 1;
+            padding-right: 2px;
+            position: relative;
+        }
+
+        .subgroup-card.left-card {
+            background: rgba(29, 185, 84, 0.08);
+            border-color: rgba(29, 185, 84, 0.3);
+        }
+
+        .subgroup-card.right-card {
+            background: rgba(59, 130, 246, 0.08);
+            border-color: rgba(59, 130, 246, 0.3);
+        }
+
+        .subgroup-title {
+            font-size: 0.75rem;
+            font-weight: bold;
+            margin-bottom: 0.4rem;
+            display: flex;
+            justify-content: space-between;
+            flex-shrink: 0;
+        }
+
+        .left-card .subgroup-title {
+            color: var(--accent-color);
+        }
+
+        .right-card .subgroup-title {
+            color: #3b82f6;
+        }
+
+        .group-item {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 0.4rem 0.5rem;
+            margin-bottom: 0.3rem;
+            background: #222;
+            border-radius: 5px;
+            font-size: 0.75rem;
+            border: 1px solid transparent;
+        }
+
+        .group-item.active-left-item {
+            background: #1e2a22;
+            border-color: var(--accent-color);
+            font-weight: bold;
+        }
+
+        .group-item.active-right-item {
+            background: #1e2538;
+            border-color: #3b82f6;
+            font-weight: bold;
+        }
+
+        .group-item.done-item {
+            opacity: 0.4;
+            text-decoration: line-through;
+        }
+
+        .group-item.merged-item {
+            background: #1c241e;
+            border: 1px dashed #333;
+            font-size: 0.75rem;
+        }
+
+        .quick-stack-card {
+            background: rgba(168, 85, 247, 0.08);
+            border: 1px solid rgba(168, 85, 247, 0.3);
+            border-radius: 8px;
+            padding: 0.7rem;
+            margin-bottom: 0.6rem;
+        }
+
+        .quick-stack-title {
+            font-size: 0.75rem;
+            font-weight: bold;
+            color: #c084fc;
+            margin-bottom: 0.3rem;
+            display: flex;
+            justify-content: space-between;
+        }
+
+        .quick-pivot-banner {
+            background: #201a2e;
+            border: 1px dashed #c084fc;
+            padding: 0.5rem;
+            border-radius: 6px;
+            margin-bottom: 0.6rem;
+            font-size: 0.75rem;
+            text-align: center;
+            color: #d8b4fe;
+        }
+
+        .badge-active {
+            font-size: 0.6rem;
+            padding: 0.1rem 0.3rem;
+            border-radius: 3px;
+            font-weight: bold;
+            flex-shrink: 0;
+            margin-left: 0.3rem;
+        }
+
+        .badge-left {
+            background: var(--accent-color);
+            color: #000;
+        }
+
+        .badge-right {
+            background: #3b82f6;
+            color: #fff;
+        }
+
+        .badge-done {
+            background: #333;
+            color: #888;
+        }
+
+        .badge-queued {
+            background: #2a2a2a;
+            color: #777;
+        }
+
+        .badge-pivot {
+            background: #c084fc;
+            color: #000;
+        }
+
+        .comparison-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 1.2rem;
+            transition: opacity 0.18s ease-in-out, transform 0.18s ease-in-out;
+        }
+
+        .comparison-grid.updating {
+            opacity: 0.15;
+            transform: scale(0.98);
+            pointer-events: none;
+        }
+
+        .option-card {
+            background: var(--card-bg);
+            border-radius: var(--border-radius);
+            padding: 1.2rem;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            position: relative;
+        }
+
+        .embed-container {
+            width: 100%;
+            height: 152px;
+            background: #000;
+            border-radius: 12px;
+            overflow: hidden;
+            margin-bottom: 1rem;
+        }
+
+        .mock-spotify-player {
+            width: 100%;
+            height: 152px;
+            background: linear-gradient(135deg, #282828 0%, #121212 100%);
+            border-radius: 12px;
+            display: flex;
+            flex-direction: column;
+            justify-content: space-between;
+            padding: 1rem;
+            border: 1px solid #333;
+            margin-bottom: 1rem;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .mock-top {
+            display: flex;
+            align-items: center;
+            gap: 0.75rem;
+        }
+
+        .mock-album-art {
+            width: 48px;
+            height: 48px;
+            background: #333;
+            border-radius: 6px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: var(--accent-color);
+            font-size: 1.2rem;
+            flex-shrink: 0;
+            box-shadow: 0 4px 10px rgba(0, 0, 0, 0.4);
+        }
+
+        .mock-track-info {
+            flex: 1;
+            min-width: 0;
+            overflow: hidden;
+        }
+
+        .mock-title {
+            font-weight: bold;
+            font-size: 0.95rem;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            color: #fff;
+        }
+
+        .mock-artist {
+            font-size: 0.75rem;
+            color: var(--text-subdued);
+            margin-top: 0.1rem;
+        }
+
+        .mock-bottom {
+            display: flex;
+            flex-direction: column;
+            gap: 0.4rem;
+        }
+
+        .mock-progress-bar {
+            width: 100%;
+            height: 4px;
+            background: #404040;
+            border-radius: 2px;
+            position: relative;
+        }
+
+        .mock-progress-fill {
+            width: 35%;
+            height: 100%;
+            background: var(--accent-color);
+            border-radius: 2px;
+        }
+
+        .mock-controls-bar {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            font-size: 0.7rem;
+            color: var(--text-subdued);
+        }
+
+        .seek-btn-group {
+            display: flex;
+            gap: 0.5rem;
+            margin-top: 0.6rem;
+        }
+
+        .seek-btn {
+            padding: 0.35rem 0.75rem;
+            font-size: 0.8rem;
+            border-radius: 20px;
+            background-color: #282828;
+            color: var(--text-color);
+            border: 1px solid #444;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            margin-left: 0;
+        }
+
+        .seek-btn:hover:not(:disabled) {
+            background-color: #333;
+            border-color: var(--accent-color);
+        }
+
+        .seek-btn:disabled {
+            opacity: 0.35;
+            cursor: not-allowed;
+            background-color: #1a1a1a;
+            border-color: #2a2a2a;
+            color: #666;
+        }
+
+        .play-hint {
+            font-size: 0.8rem;
+            color: var(--text-subdued);
+            margin-top: 0.6rem;
+            display: flex;
+            align-items: center;
+            gap: 0.3rem;
+        }
+
+        .seek-toast {
+            position: absolute;
+            top: 10px;
+            left: 50%;
+            transform: translateX(-50%);
+            background: rgba(0, 0, 0, 0.85);
+            color: var(--accent-color);
+            padding: 4px 10px;
+            border-radius: 20px;
+            font-weight: bold;
+            font-size: 0.85rem;
+            border: 1px solid var(--accent-color);
+            pointer-events: none;
+            opacity: 0;
+            transition: opacity 0.2s ease;
+        }
+
+        .reload-toast {
+            position: fixed;
+            top: 20px;
+            left: 50%;
+            transform: translateX(-50%);
+            background: rgba(219, 68, 85, 0.95);
+            color: white;
+            padding: 8px 16px;
+            border-radius: 20px;
+            font-weight: bold;
+            font-size: 0.9rem;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.5);
+            z-index: 9999;
+            opacity: 0;
+            transition: opacity 0.2s ease;
+            pointer-events: none;
+        }
+
+        .results-grid {
+            display: grid;
+            grid-template-columns: 1fr;
+            gap: 2rem;
+        }
+
+        .results-column {
+            background: var(--card-bg);
+            padding: 1.5rem;
+            border-radius: var(--border-radius);
+            max-height: 60vh;
+            overflow-y: auto;
+        }
+
+        .results-header-actions {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 1rem;
+        }
+
+        .action-buttons {
+            display: flex;
+            gap: 0.5rem;
+            flex-wrap: wrap;
+            margin-top: 1.5rem;
+            justify-content: center;
+        }
+
+        .ranked-item {
+            display: flex;
+            align-items: center;
+            padding: 0.75rem;
+            background: #222;
+            border-radius: 6px;
+            margin-bottom: 0.5rem;
+        }
+
+        .rank-number {
+            font-weight: bold;
+            width: 40px;
+            color: var(--text-subdued);
+        }
+
+        .keyboard-hint {
+            text-align: center;
+            color: var(--text-subdued);
+            font-size: 0.85rem;
+            margin-top: 1.2rem;
+            line-height: 1.8;
+            background: var(--card-bg);
+            padding: 1rem;
+            border-radius: var(--border-radius);
+            border: 1px solid #282828;
+        }
+
+        .keyboard-hint-row {
+            margin-bottom: 0.25rem;
+        }
+
+        .seek-status-badge {
+            font-size: 0.75rem;
+            color: #888;
+            margin-left: 0.4rem;
+            font-style: italic;
+        }
+
+        kbd {
+            background: #333;
+            color: var(--accent-color);
+            padding: 0.15rem 0.4rem;
+            border-radius: 4px;
+            border: 1px solid #444;
+            font-family: monospace;
+        }
+
+        /* Replace '.left-panel' with the actual class or ID of your scrolling container */
+        .left-panel {
+            overflow-y: auto;
+            /* Hide scrollbar for Firefox by default */
+            scrollbar-color: transparent transparent;
+            scrollbar-width: thin;
+            transition: scrollbar-color 0.3s;
+        }
+
+        /* Show scrollbar on hover for Firefox */
+        .left-panel:hover {
+            scrollbar-color: rgba(150, 150, 150, 0.5) transparent;
+            /* Adjust color to fit your theme */
+        }
+
+        /* WebKit (Chrome, Safari, Edge) */
+        .left-panel::-webkit-scrollbar {
+            width: 8px;
+            background: transparent;
+        }
+
+        .left-panel::-webkit-scrollbar-thumb {
+            background-color: transparent;
+            border-radius: 4px;
+        }
+
+        .left-panel:hover::-webkit-scrollbar-thumb {
+            background-color: rgba(150, 150, 150, 0.5);
+            /* Adjust color to fit your theme */
+        }
+    </style>
+</head>
+
+<body onclick="window.focus()">
+
+    <div id="reload-toast" class="reload-toast">Refreshing page in 1s...</div>
+
+    <div id="settings-modal" class="modal-overlay">
+        <div class="modal-card">
+            <div class="modal-title">
+                <span>Sorter Settings</span>
+                <button class="btn btn-secondary" onclick="App.toggleSettingsModal()"
+                    style="padding: 0.2rem 0.6rem; font-size: 0.8rem;">✕</button>
+            </div>
+            <div class="form-group">
+                <label class="form-label" for="algorithm-select">Sorting Algorithm</label>
+                <select id="algorithm-select" class="select-input" onchange="App.onAlgorithmChange(this.value)">
+                    <option value="mergesort">Merge Sort (Iterative)</option>
+                    <option value="quicksort">Quicksort (Partition-based)</option>
+                </select>
+            </div>
+            <div style="font-size: 0.8rem; color: var(--text-subdued); line-height: 1.4; margin-bottom: 1.5rem;">
+                Switching sorting algorithms will reset your active ranking session and start over.
+            </div>
+            <div style="display: flex; justify-content: flex-end;">
+                <button class="btn" onclick="App.toggleSettingsModal()">Apply & Close</button>
+            </div>
+        </div>
+    </div>
+
+    <div class="container">
+        <header>
+            <button class="settings-gear-btn" onclick="App.toggleSettingsModal()" title="Sorter Settings">⚙️</button>
+            <h1>Spotify Song & Album Sorter</h1>
+            <p class="subtitle">Rank songs head-to-head cleanly using SMART Architecture.</p>
+        </header>
+
+        <div id="view-input" class="view">
+            <div id="resume-container" class="hidden">
+                <div class="resume-banner">
+                    <div>
+                        <strong>Saved Session Found</strong>
+                        <div style="font-size: 0.85rem; color: var(--text-subdued);" id="resume-info">Progress saved.
+                        </div>
+                    </div>
+                    <div>
+                        <button class="btn" onclick="App.resumeSession()">Resume Session</button>
+                        <button class="btn btn-secondary btn-danger" onclick="App.clearSavedSession()">Discard</button>
+                    </div>
+                </div>
+            </div>
+
+            <div class="input-card">
+                <div class="bookmarklet-box">
+                    <strong>1-Click Album Extractor:</strong>
+                    <p style="font-size: 0.85rem; color: var(--text-subdued); margin-top: 0.2rem;">
+                        Drag this button to your Browser Bookmarks bar. Open any Album on Spotify and click it to
+                        auto-send songs here!
+                    </p>
+                    <a class="bookmarklet-btn"
+                        href="javascript:(function(){const e=Array.from(document.querySelectorAll('a[href*=\'/track/\']')),t=[...new Set(e.map(e=>{const t=new URL(e.href,window.location.origin);return`${t.origin}${t.pathname}`}))];if(!t.length)return void alert('No tracks found on this page!');const n=t.join('\n');navigator.clipboard.writeText(n).then(()=>alert(`Copied ${t.length} track URLs to your clipboard!`)).catch(()=>prompt(`Extracted ${t.length} tracks. Copy below:`,n))})();">
+                        + Scrape Spotify Album
+                    </a>
+                </div>
+
+                <label style="display:block; margin-bottom: 0.5rem; font-weight:600;">Paste Spotify Track URLs or Plain
+                    Song Names (One per line):</label>
+                <textarea id="links-input" placeholder="https://open.spotify.com/track/3n3PpPaw2BWig3A1T39R2G
+Bohemian Rhapsody - Queen
+Stairway to Heaven"></textarea>
+                <button class="btn" onclick="App.startNewSession()">Start Ranking</button>
+            </div>
+        </div>
+
+        <div id="view-sort" class="view hidden">
+            <div class="sort-header">
+                <span id="step-counter" style="color: var(--text-subdued);">Comparison #1</span>
+                <div>
+                    <button class="btn btn-secondary" onclick="App.forcePageReloadAndResume()">Hard Refresh <span
+                            class="hotkey-badge">Hold M (1s)</span></button>
+                    <button class="btn btn-secondary" onclick="App.saveAndPause()">Save & Exit</button>
+                </div>
+            </div>
+
+            <div class="progress-bar-container">
+                <div id="progress-bar" class="progress-bar"></div>
+            </div>
+
+            <div class="sort-layout">
+                <div class="sidebar">
+                    <div class="sidebar-header">
+                        <div class="sidebar-title">
+                            <span>Grouping Inspector</span>
+                            <span style="font-size:0.75rem; color:var(--text-subdued);" id="live-count">0 items</span>
+                        </div>
+                        <div class="sidebar-stage-badge" id="stage-info">Phase: Merging groups</div>
+                    </div>
+
+                    <div class="sidebar-scroll-area hover-scrollbar" id="sidebar-scroll-wrapper">
+                        <div id="sidebar-dynamic-content"></div>
+                    </div>
+                </div>
+
+                <div class="main-sort-area">
+                    <div class="comparison-grid" id="comparison-grid">
+                        <div class="option-card" id="card-wrapper-a">
+                            <div id="toast-a" class="seek-toast"></div>
+                            <div class="embed-container" id="embed-a"></div>
+                            <div id="mock-player-a" class="mock-spotify-player hidden">
+                                <div class="mock-top">
+                                    <div class="mock-album-art">🎵</div>
+                                    <div class="mock-track-info">
+                                        <div class="mock-title" id="mock-title-a">Song Name</div>
+                                        <div class="mock-artist">Local / Text Entry</div>
+                                    </div>
+                                </div>
+                                <div class="mock-bottom">
+                                    <div class="mock-progress-bar">
+                                        <div class="mock-progress-fill"></div>
+                                    </div>
+                                    <div class="mock-controls-bar">
+                                        <span>▶ Spotify Mock Player</span>
+                                        <span>3:45</span>
+                                    </div>
+                                </div>
+                            </div>
+                            <button class="btn" onclick="App.makeChoice('left')">Choose Left <span
+                                    class="hotkey-badge">U</span></button>
+                            <div class="seek-btn-group" id="seek-group-a">
+                                <button class="btn btn-secondary seek-btn" id="seek-back-a"
+                                    onclick="App.seekTrack('A', -30)" disabled>-30s <kbd>K</kbd></button>
+                                <button class="btn btn-secondary seek-btn" id="seek-fwd-a"
+                                    onclick="App.seekTrack('A', 30)" disabled>+30s <kbd>I</kbd></button>
+                            </div>
+                            <div class="play-hint" id="play-hint-a">Play / Pause <kbd>J</kbd></div>
+                        </div>
+                        <div class="option-card" id="card-wrapper-b">
+                            <div id="toast-b" class="seek-toast"></div>
+                            <div class="embed-container" id="embed-b"></div>
+                            <div id="mock-player-b" class="mock-spotify-player hidden">
+                                <div class="mock-top">
+                                    <div class="mock-album-art">🎵</div>
+                                    <div class="mock-track-info">
+                                        <div class="mock-title" id="mock-title-b">Song Name</div>
+                                        <div class="mock-artist">Local / Text Entry</div>
+                                    </div>
+                                </div>
+                                <div class="mock-bottom">
+                                    <div class="mock-progress-bar">
+                                        <div class="mock-progress-fill"></div>
+                                    </div>
+                                    <div class="mock-controls-bar">
+                                        <span>▶ Spotify Mock Player</span>
+                                        <span>3:45</span>
+                                    </div>
+                                </div>
+                            </div>
+                            <button class="btn" onclick="App.makeChoice('right')">Choose Right <span
+                                    class="hotkey-badge">O</span></button>
+                            <div class="seek-btn-group" id="seek-group-b">
+                                <button class="btn btn-secondary seek-btn" id="seek-back-b"
+                                    onclick="App.seekTrack('B', -30)" disabled>-30s <kbd>K</kbd></button>
+                                <button class="btn btn-secondary seek-btn" id="seek-fwd-b"
+                                    onclick="App.seekTrack('B', 30)" disabled>+30s <kbd>I</kbd></button>
+                            </div>
+                            <div class="play-hint" id="play-hint-b">Play / Pause <kbd>L</kbd></div>
+                        </div>
+                    </div>
+
+                    <div class="keyboard-hint">
+                        <div class="keyboard-hint-row"><strong>Select:</strong> <kbd>U</kbd> (Left) &nbsp;/&nbsp;
+                            <kbd>O</kbd> (Right)
+                        </div>
+                        <div class="keyboard-hint-row"><strong>Play / Pause:</strong> <kbd>J</kbd>
+                            (Left) &nbsp;/&nbsp; <kbd>L</kbd> (Right)</div>
+                        <div class="keyboard-hint-row">
+                            <strong>Seek Active Track:</strong> <kbd>K</kbd> (-30s) &nbsp;/&nbsp; <kbd>I</kbd> (+30s)
+                            <span id="seek-status-badge" class="seek-status-badge">(Disabled - No track playing)</span>
+                        </div>
+                        <div class="keyboard-hint-row"><strong>Hard Page Refresh:</strong> Hold <kbd>M</kbd> for 1
+                            second (Auto-resumes)</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div id="view-results" class="view hidden">
+            <div class="results-grid">
+                <div class="results-column hover-scrollbar">
+                    <div class="results-header-actions">
+                        <h2>Final Song Rankings</h2>
+                    </div>
+                    <ol id="songs-results"></ol>
+                </div>
+            </div>
+
+            <div class="action-buttons">
+                <button class="btn" onclick="App.exportToCSV()">📥 Download CSV</button>
+                <button class="btn btn-secondary" onclick="App.copyResultsToClipboard()">📋 Copy to Clipboard</button>
+                <button class="btn btn-secondary btn-danger" onclick="App.resetToHome()">🔄 Start New Ranking</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        /**
+         * SMART ARCHITECTURE MODULES
+         */
+
+        // 1. Storage & Persistence Service
+        const StorageService = {
+            STORAGE_KEY: 'spotify_sorter_smart_v2',
+            AUTO_RESUME_KEY: 'spotify_sorter_auto_resume',
+
+            save(state) {
+                localStorage.setItem(this.STORAGE_KEY, JSON.stringify(state));
+            },
+            load() {
+                const data = localStorage.getItem(this.STORAGE_KEY);
+                return data ? JSON.parse(data) : null;
+            },
+            clear() {
+                localStorage.removeItem(this.STORAGE_KEY);
+            },
+            setAutoResume(val) {
+                sessionStorage.setItem(this.AUTO_RESUME_KEY, val ? 'true' : 'false');
+            },
+            getAutoResume() {
+                return sessionStorage.getItem(this.AUTO_RESUME_KEY) === 'true';
+            },
+            clearAutoResume() {
+                sessionStorage.removeItem(this.AUTO_RESUME_KEY);
+            }
+        };
+
+        // 2. Encapsulated Player Adapter (Handles IFrame creation, race conditions, safe pause/seek)
+        class PlayerAdapter {
+            constructor(containerId, side, onStateChange) {
+                this.containerId = containerId;
+                this.side = side;
+                this.onStateChange = onStateChange;
+                this.controller = null;
+                this.position = 0;
+                this.duration = 30;
+                this.isPlaying = false;
+                this.isReady = false;
+            }
+
+            async loadTrack(spotifyApi, track) {
+                const container = document.getElementById(this.containerId);
+                const mockPlayer = document.getElementById(`mock-player-${this.side.toLowerCase()}`);
+                const seekGroup = document.getElementById(`seek-group-${this.side.toLowerCase()}`);
+                const playHint = document.getElementById(`play-hint-${this.side.toLowerCase()}`);
+
+                // Guard against missing DOM elements during view transitions
+                if (!container || !mockPlayer || !seekGroup || !playHint) return;
+
+                this.destroy(); // Clean up old state & DOM
+
+                if (track.isSpotify) {
+                    container.classList.remove('hidden');
+                    mockPlayer.classList.add('hidden');
+                    seekGroup.classList.remove('hidden');
+                    playHint.classList.remove('hidden');
+
+                    const uri = `spotify:track:${track.id}`;
+                    if (spotifyApi) {
+                        // Spotify replaces the target element with an IFrame. 
+                        // We inject a fresh inner div so the main wrapper (containerId) is never destroyed.
+                        const targetId = `${this.containerId}-target`;
+                        container.innerHTML = `<div id="${targetId}"></div>`;
+                        const targetElement = document.getElementById(targetId);
+
+                        try {
+                            spotifyApi.createController(targetElement, { width: '100%', height: '152', uri: uri }, (controller) => {
+                                this.controller = controller;
+                                this.isReady = true;
+                                this.setupListeners();
+                            });
+                        } catch (err) {
+                            console.error("Error creating Spotify controller:", err);
+                        }
+                    }
+                } else {
+                    container.classList.add('hidden');
+                    mockPlayer.classList.remove('hidden');
+                    seekGroup.classList.add('hidden');
+                    playHint.classList.add('hidden');
+
+                    const titleEl = document.getElementById(`mock-title-${this.side.toLowerCase()}`);
+                    if (titleEl) titleEl.innerText = track.title;
+                }
+            }
+
+            setupListeners() {
+                if (!this.controller) return;
+                try {
+                    this.controller.addListener('playback_update', e => {
+                        if (e && e.data) {
+                            let pos = e.data.position || 0;
+                            if (pos > 1000) pos = pos / 1000;
+                            this.position = pos;
+
+                            if (e.data.duration) {
+                                this.duration = e.data.duration > 1000 ? e.data.duration / 1000 : e.data.duration;
+                            }
+
+                            const playing = !e.data.isPaused;
+                            this.isPlaying = playing;
+                            if (this.onStateChange) this.onStateChange(this.side, playing);
+                        }
+                    });
+                } catch (err) {
+                    console.error("Error setting up Spotify listeners:", err);
+                }
+            }
+
+            togglePlay() {
+                if (this.controller && this.isReady) {
+                    try {
+                        // Catch Unhandled Promise Rejections if Spotify is still buffering
+                        const p = this.controller.togglePlay();
+                        if (p && p.catch) p.catch(() => { });
+                    } catch (err) { }
+                }
+            }
+
+            pause() {
+                if (this.controller && this.isReady) {
+                    try {
+                        const p = this.controller.pause();
+                        if (p && p.catch) p.catch(() => { });
+                    } catch (err) { }
+                }
+                this.isPlaying = false;
+            }
+
+            seek(seconds) {
+                if (!this.controller || !this.isReady) return;
+                let newPos = this.position + seconds;
+                if (newPos < 0) newPos = 0;
+                try {
+                    const p = this.controller.seek(Math.round(newPos));
+                    if (p && p.catch) p.catch(() => { });
+                } catch (err) { }
+            }
+
+            destroy() {
+                this.isReady = false;
+
+                if (this.controller) {
+                    try {
+                        const p = this.controller.pause();
+                        if (p && p.catch) p.catch(() => { });
+                    } catch (err) { }
+
+                    try {
+                        if (typeof this.controller.destroy === 'function') {
+                            this.controller.destroy();
+                        }
+                    } catch (err) { }
+                }
+
+                // Clear out the wrapper container to delete the IFrame cleanly
+                const container = document.getElementById(this.containerId);
+                if (container) container.innerHTML = '';
+
+                this.controller = null;
+                this.position = 0;
+                this.isPlaying = false;
+            }
+        }
+
+        // 3. Central Application Controller
+        class SortingApp {
+            constructor() {
+                this.spotifyApi = null;
+                this.playerA = new PlayerAdapter('embed-a', 'A', (side, playing) => this.handlePlaybackUpdate(side, playing));
+                this.playerB = new PlayerAdapter('embed-b', 'B', (side, playing) => this.handlePlaybackUpdate(side, playing));
+
+                this.activeSide = 'A';
+                this.currentlyPlaying = null;
+                this.seekTimer = null;
+                this.isSeekAllowed = false;
+
+                this.mHoldTimer = null;
+                this.mIsPressed = false;
+                this.currentAlgorithm = 'mergesort';
+
+                this.state = this.getDefaultState();
+            }
+
+            getDefaultState() {
+                return {
+                    algorithm: 'mergesort',
+                    workArr: [],
+                    nextArr: [],
+                    currentSize: 1,
+                    leftStart: 0,
+                    left: [],
+                    right: [],
+                    lIdx: 0,
+                    rIdx: 0,
+                    mergedChunk: [],
+                    quickItems: [],
+                    stack: [],
+                    currentPartition: null,
+                    completedComparisons: 0,
+                    totalComparisons: 0
+                };
+            }
+
+            init() {
+                window.onSpotifyIframeApiReady = (api) => {
+                    this.spotifyApi = api;
+                    if (!document.getElementById('view-sort').classList.contains('hidden')) {
+                        this.renderCurrentComparison();
+                    }
+                };
+
+                this.setupHotkeys();
+                this.updateSeekUI();
+
+                if (StorageService.getAutoResume() && StorageService.load()) {
+                    StorageService.clearAutoResume();
+                    this.resumeSession();
+                } else {
+                    this.checkSavedSession();
+                }
+            }
+
+            toggleSettingsModal() {
+                document.getElementById('settings-modal').classList.toggle('active');
+            }
+
+            onAlgorithmChange(val) {
+                this.currentAlgorithm = val;
+                document.getElementById('algorithm-select').value = val;
+            }
+
+            checkSavedSession() {
+                const saved = StorageService.load();
+                const container = document.getElementById('resume-container');
+                if (saved) {
+                    container.classList.remove('hidden');
+                    document.getElementById('resume-info').innerText =
+                        `Saved progress (${saved.algorithm || 'mergesort'}): ${saved.completedComparisons} choices made.`;
+                } else {
+                    container.classList.add('hidden');
+                }
+            }
+
+            startNewSession() {
+                const raw = document.getElementById('links-input').value;
+                const lines = raw.split('\n').map(l => l.trim()).filter(l => l !== '');
+
+                const tracks = lines.map((line, idx) => {
+                    const match = line.match(/track\/([a-zA-Z0-9]+)/);
+                    if (match) {
+                        return {
+                            id: match[1],
+                            title: 'Loading song name...',
+                            originalUrl: `https://open.spotify.com/track/${match[1]}`,
+                            isSpotify: true
+                        };
+                    }
+                    return {
+                        id: `text_${idx}_${Math.random().toString(36).substring(2, 7)}`,
+                        title: line,
+                        originalUrl: line,
+                        isSpotify: false
+                    };
+                });
+
+                const unique = Array.from(new Map(tracks.map(t => [t.id, t])).values());
+                if (unique.length < 2) {
+                    alert('Paste at least 2 unique track names or URLs to start.');
+                    return;
+                }
+
+                if (this.currentAlgorithm === 'mergesort') {
+                    this.state = {
+                        algorithm: 'mergesort',
+                        workArr: unique,
+                        nextArr: [],
+                        currentSize: 1,
+                        leftStart: 0,
+                        left: [],
+                        right: [],
+                        lIdx: 0,
+                        rIdx: 0,
+                        mergedChunk: [],
+                        completedComparisons: 0,
+                        totalComparisons: Math.ceil(unique.length * Math.log2(unique.length))
+                    };
+                } else {
+                    this.state = {
+                        algorithm: 'quicksort',
+                        quickItems: unique,
+                        stack: [{ arr: unique, low: 0, high: unique.length - 1 }],
+                        currentPartition: null,
+                        completedComparisons: 0,
+                        totalComparisons: Math.round(unique.length * Math.log2(Math.max(2, unique.length)))
+                    };
+                    this.initQuicksortPartition();
+                }
+
+                StorageService.save(this.state);
+                this.switchView('sort');
+                this.processNextStep();
+                this.fetchMetadata(unique);
+            }
+
+            resumeSession() {
+                const saved = StorageService.load();
+                if (!saved) return;
+                this.state = saved;
+                this.currentAlgorithm = saved.algorithm || 'mergesort';
+                document.getElementById('algorithm-select').value = this.currentAlgorithm;
+
+                this.switchView('sort');
+                this.renderCurrentComparison();
+                this.fetchMetadata(this.currentAlgorithm === 'mergesort' ? this.state.workArr : this.state.quickItems);
+            }
+
+            clearSavedSession() {
+                StorageService.clear();
+                document.getElementById('resume-container').classList.add('hidden');
+            }
+
+            saveAndPause() {
+                StorageService.save(this.state);
+                alert('Progress saved successfully!');
+                this.resetToHome();
+            }
+
+            forcePageReloadAndResume() {
+                StorageService.save(this.state);
+                StorageService.setAutoResume(true);
+                window.location.reload();
+            }
+
+            switchView(viewName) {
+                document.getElementById('view-input').classList.add('hidden');
+                document.getElementById('view-sort').classList.add('hidden');
+                document.getElementById('view-results').classList.add('hidden');
+                document.getElementById(`view-${viewName}`).classList.remove('hidden');
+            }
+
+            resetToHome() {
+                this.playerA.destroy();
+                this.playerB.destroy();
+                this.checkSavedSession();
+                this.switchView('input');
+            }
+
+            async fetchMetadata(tracks) {
+                for (let track of tracks) {
+                    if (track.isSpotify && track.title.startsWith('Loading')) {
+                        try {
+                            const res = await fetch(`https://open.spotify.com/oembed?url=${encodeURIComponent(track.originalUrl)}`);
+                            if (res.ok) {
+                                const data = await res.json();
+                                if (data.title) {
+                                    track.title = data.author_name ? `${data.title} — ${data.author_name}` : data.title;
+                                    StorageService.save(this.state);
+                                    this.updateSidebar();
+                                }
+                            }
+                        } catch (e) { }
+                    }
+                }
+            }
+
+            initQuicksortPartition() {
+                while (this.state.stack.length > 0) {
+                    const frame = this.state.stack[this.state.stack.length - 1];
+                    if (frame.low >= frame.high) {
+                        this.state.stack.pop();
+                        continue;
+                    }
+                    const pivotIdx = Math.floor((frame.low + frame.high) / 2);
+                    this.state.currentPartition = {
+                        arr: frame.arr,
+                        low: frame.low,
+                        high: frame.high,
+                        pivotIdx: pivotIdx,
+                        pivotItem: frame.arr[pivotIdx],
+                        comparingIdx: frame.low,
+                        leftPartition: [],
+                        rightPartition: []
+                    };
+                    return;
+                }
+                this.displayResults(this.state.quickItems);
+            }
+
+            processNextStep() {
+                if (this.state.algorithm === 'mergesort') {
+                    this.processMergeSort();
+                } else {
+                    this.processQuickSort();
+                }
+            }
+
+            processMergeSort() {
+                const n = this.state.workArr.length;
+                while (this.state.currentSize < n) {
+                    while (this.state.leftStart < n) {
+                        if (this.state.left.length === 0 && this.state.right.length === 0) {
+                            const mid = Math.min(this.state.leftStart + this.state.currentSize, n);
+                            const rightEnd = Math.min(this.state.leftStart + 2 * this.state.currentSize, n);
+
+                            if (mid >= rightEnd) {
+                                this.state.nextArr.push(...this.state.workArr.slice(this.state.leftStart, rightEnd));
+                                this.state.leftStart += 2 * this.state.currentSize;
+                                continue;
+                            }
+
+                            this.state.left = this.state.workArr.slice(this.state.leftStart, mid);
+                            this.state.right = this.state.workArr.slice(mid, rightEnd);
+                            this.state.lIdx = 0;
+                            this.state.rIdx = 0;
+                            this.state.mergedChunk = [];
+                        }
+
+                        if (this.state.lIdx < this.state.left.length && this.state.rIdx < this.state.right.length) {
+                            StorageService.save(this.state);
+                            this.renderCurrentComparison();
+                            return;
+                        }
+
+                        if (this.state.lIdx < this.state.left.length) this.state.mergedChunk.push(...this.state.left.slice(this.state.lIdx));
+                        if (this.state.rIdx < this.state.right.length) this.state.mergedChunk.push(...this.state.right.slice(this.state.rIdx));
+
+                        this.state.nextArr.push(...this.state.mergedChunk);
+                        this.state.left = [];
+                        this.state.right = [];
+                        this.state.mergedChunk = [];
+                        this.state.leftStart += 2 * this.state.currentSize;
+                    }
+
+                    this.state.workArr = this.state.nextArr;
+                    this.state.nextArr = [];
+                    this.state.currentSize *= 2;
+                    this.state.leftStart = 0;
+                }
+
+                StorageService.clear();
+                this.displayResults(this.state.workArr);
+            }
+
+            processQuickSort() {
+                if (!this.state.currentPartition) {
+                    this.initQuicksortPartition();
+                    if (!this.state.currentPartition) return;
+                }
+
+                const p = this.state.currentPartition;
+                while (p.comparingIdx <= p.high) {
+                    if (p.comparingIdx === p.pivotIdx) {
+                        p.comparingIdx++;
+                        continue;
+                    }
+                    StorageService.save(this.state);
+                    this.renderCurrentComparison();
+                    return;
+                }
+
+                this.state.stack.pop();
+                this.initQuicksortPartition();
+                if (!this.state.currentPartition && this.state.stack.length === 0) {
+                    StorageService.clear();
+                    this.displayResults(this.state.quickItems);
+                } else {
+                    this.renderCurrentComparison();
+                }
+            }
+
+            makeChoice(choice) {
+                this.resetPlaybackState();
+                this.playerA.pause();
+                this.playerB.pause();
+
+                const grid = document.getElementById('comparison-grid');
+                if (grid) grid.classList.add('updating');
+
+                if (this.state.algorithm === 'mergesort') {
+                    if (choice === 'left') {
+                        this.state.mergedChunk.push(this.state.left[this.state.lIdx++]);
+                    } else {
+                        this.state.mergedChunk.push(this.state.right[this.state.rIdx++]);
+                    }
+                } else {
+                    const p = this.state.currentPartition;
+                    if (p) {
+                        const candidate = p.arr[p.comparingIdx];
+                        if (choice === 'left') p.leftPartition.push(candidate);
+                        else p.rightPartition.push(candidate);
+                        p.comparingIdx++;
+                    }
+                }
+
+                this.state.completedComparisons++;
+
+                setTimeout(() => {
+                    this.processNextStep();
+                    setTimeout(() => {
+                        if (grid) grid.classList.remove('updating');
+                    }, 180);
+                }, 150);
+            }
+
+            renderCurrentComparison() {
+                this.resetPlaybackState();
+
+                let itemA, itemB;
+                if (this.state.algorithm === 'mergesort') {
+                    itemA = this.state.left[this.state.lIdx];
+                    itemB = this.state.right[this.state.rIdx];
+                } else {
+                    const p = this.state.currentPartition;
+                    if (!p) return;
+                    itemA = p.arr[p.comparingIdx];
+                    itemB = p.pivotItem;
+                }
+
+                document.getElementById('step-counter').innerText = `Comparison #${this.state.completedComparisons + 1}`;
+                const pct = Math.min(100, Math.round((this.state.completedComparisons / Math.max(1, this.state.totalComparisons)) * 100));
+                document.getElementById('progress-bar').style.width = `${pct}%`;
+
+                this.playerA.loadTrack(this.spotifyApi, itemA);
+                this.playerB.loadTrack(this.spotifyApi, itemB);
+
+                this.updateSidebar();
+            }
+
+            handlePlaybackUpdate(side, isPlaying) {
+                if (side === 'A' && isPlaying) this.playerB.pause();
+                if (side === 'B' && isPlaying) this.playerA.pause();
+
+                const nowPlaying = this.playerA.isPlaying ? 'A' : (this.playerB.isPlaying ? 'B' : null);
+                if (nowPlaying !== this.currentlyPlaying) {
+                    if (this.seekTimer) {
+                        clearTimeout(this.seekTimer);
+                        this.seekTimer = null;
+                    }
+                    this.isSeekAllowed = false;
+                    this.currentlyPlaying = nowPlaying;
+
+                    if (this.currentlyPlaying !== null) {
+                        this.seekTimer = setTimeout(() => {
+                            this.isSeekAllowed = true;
+                            this.seekTimer = null;
+                            this.updateSeekUI();
+                        }, 2000);
+                    }
+                    this.updateSeekUI();
+                }
+            }
+
+            resetPlaybackState() {
+                if (this.seekTimer) {
+                    clearTimeout(this.seekTimer);
+                    this.seekTimer = null;
+                }
+                this.currentlyPlaying = null;
+                this.isSeekAllowed = false;
+                this.updateSeekUI();
+            }
+
+            updateSeekUI() {
+                const allow = this.currentlyPlaying !== null && this.isSeekAllowed;
+                document.querySelectorAll('.seek-btn').forEach(btn => btn.disabled = !allow);
+
+                const badge = document.getElementById('seek-status-badge');
+                if (badge) {
+                    if (this.currentlyPlaying === null) {
+                        badge.innerText = '(Disabled - No track playing)';
+                        badge.style.color = '#888';
+                    } else if (!this.isSeekAllowed) {
+                        badge.innerText = '(Disabled - Waiting 2s after play)';
+                        badge.style.color = '#e5a50a';
+                    } else {
+                        badge.innerText = '(Ready)';
+                        badge.style.color = 'var(--accent-color)';
+                    }
+                }
+            }
+
+            toggleLeftPlayback() {
+                this.activeSide = 'A';
+                this.playerB.pause();
+                this.playerA.togglePlay();
+                window.focus();
+            }
+
+            toggleRightPlayback() {
+                this.activeSide = 'B';
+                this.playerA.pause();
+                this.playerB.togglePlay();
+                window.focus();
+            }
+
+            seekTrack(side, seconds) {
+                this.activeSide = side;
+                const target = side === 'A' ? this.playerA : this.playerB;
+                if (this.currentlyPlaying !== null && this.isSeekAllowed) {
+                    target.seek(seconds);
+                    const toast = document.getElementById(`toast-${side.toLowerCase()}`);
+                    if (toast) {
+                        toast.innerText = seconds > 0 ? `+${seconds}s` : `${seconds}s`;
+                        toast.style.opacity = '1';
+                        setTimeout(() => { toast.style.opacity = '0'; }, 1000);
+                    }
+                }
+                window.focus();
+            }
+
+            setupHotkeys() {
+                window.addEventListener('keydown', (e) => {
+                    if (['INPUT', 'TEXTAREA'].includes(document.activeElement.tagName)) return;
+                    if (document.getElementById('view-sort').classList.contains('hidden')) return;
+
+                    const key = e.key.toLowerCase();
+                    if (key === 'm') {
+                        if (!this.mIsPressed) {
+                            this.mIsPressed = true;
+                            document.getElementById('reload-toast').style.opacity = '1';
+                            this.mHoldTimer = setTimeout(() => this.forcePageReloadAndResume(), 1000);
+                        }
+                        return;
+                    }
+
+                    if (key === 'u') this.makeChoice('left');
+                    else if (key === 'o') this.makeChoice('right');
+                    else if (key === 'j') this.toggleLeftPlayback();
+                    else if (key === 'l') this.toggleRightPlayback();
+                    else if (key === 'i') this.seekTrack(this.activeSide, 30);
+                    else if (key === 'k') this.seekTrack(this.activeSide, -30);
+                });
+
+                window.addEventListener('keyup', (e) => {
+                    if (e.key.toLowerCase() === 'm') {
+                        this.mIsPressed = false;
+                        if (this.mHoldTimer) {
+                            clearTimeout(this.mHoldTimer);
+                            this.mHoldTimer = null;
+                        }
+                        document.getElementById('reload-toast').style.opacity = '0';
+                    }
+                });
+            }
+
+            updateSidebar() {
+                const stageEl = document.getElementById('stage-info');
+                const dynamicContent = document.getElementById('sidebar-dynamic-content');
+                const liveCount = document.getElementById('live-count');
+
+                if (this.state.algorithm === 'mergesort') {
+                    if (stageEl) stageEl.innerText = `Phase: Merging groups of ${this.state.currentSize}`;
+                    if (liveCount) liveCount.innerText = `${this.state.workArr.length} tracks total`;
+
+                    if (dynamicContent) {
+                        dynamicContent.innerHTML = `
+                            <div class="group-header">Active Matchup Subgroups</div>
+                            <div class="subgroups-row">
+                                <div class="subgroup-card left-card">
+                                    <div class="subgroup-title"><span>Left</span><span id="left-group-count">${this.state.left.length}</span></div>
+                                    <div class="subgroup-scroll-pane hover-scrollbar"><div id="left-group-list"></div></div>
+                                </div>
+                                <div class="subgroup-card right-card">
+                                    <div class="subgroup-title"><span>Right</span><span id="right-group-count">${this.state.right.length}</span></div>
+                                    <div class="subgroup-scroll-pane hover-scrollbar"><div id="right-group-list"></div></div>
+                                </div>
+                            </div>
+                            <div id="merged-section" class="${this.state.mergedChunk.length > 0 ? '' : 'hidden'}">
+                                <div class="group-header" style="margin-top: 0.6rem;">Matchup Order So Far</div>
+                                <div id="merged-group-list"></div>
+                            </div>
+                        `;
+                    }
+                    this.renderMergeSortLists();
+                } else {
+                    if (stageEl) stageEl.innerText = `Phase: Quicksort Partition`;
+                    if (liveCount) liveCount.innerText = `${this.state.quickItems.length} tracks total`;
+
+                    const p = this.state.currentPartition;
+                    if (dynamicContent) {
+                        dynamicContent.innerHTML = `
+                            <div class="quick-stack-card">
+                                <div class="quick-stack-title"><span>Active Partition Stack</span><span>Depth: ${this.state.stack.length}</span></div>
+                                <div style="font-size:0.72rem; color:var(--text-subdued);">Sorting subsegment from index ${p ? p.low : 0} to ${p ? p.high : 0}</div>
+                            </div>
+                            <div class="quick-pivot-banner">🎯 <strong>Pivot:</strong> ${this.escapeHtml(p ? p.pivotItem.title : '')}</div>
+                            <div class="group-header">Candidate vs Pivot</div>
+                            <div class="subgroup-scroll-pane hover-scrollbar" style="max-height:240px;"><div id="quicksort-candidate-list"></div></div>
+                        `;
+                    }
+                    this.renderQuickSortLists();
+                }
+            }
+
+            renderMergeSortLists() {
+                const leftEl = document.getElementById('left-group-list');
+                if (leftEl) {
+                    leftEl.innerHTML = this.state.left.map((track, idx) => {
+                        let badge = idx < this.state.lIdx ? `<span class="badge-active badge-done">PLACED</span>` :
+                            idx === this.state.lIdx ? `<span class="badge-active badge-left">[U]</span>` : `<span class="badge-active badge-queued">QUEUED</span>`;
+                        let cls = idx < this.state.lIdx ? 'group-item done-item' : idx === this.state.lIdx ? 'group-item active-left-item' : 'group-item';
+                        return `<div class="${cls}"><div style="overflow:hidden; text-overflow:ellipsis; white-space:nowrap;">${this.escapeHtml(track.title)}</div>${badge}</div>`;
+                    }).join('');
+                }
+
+                const rightEl = document.getElementById('right-group-list');
+                if (rightEl) {
+                    rightEl.innerHTML = this.state.right.map((track, idx) => {
+                        let badge = idx < this.state.rIdx ? `<span class="badge-active badge-done">PLACED</span>` :
+                            idx === this.state.rIdx ? `<span class="badge-active badge-right">[O]</span>` : `<span class="badge-active badge-queued">QUEUED</span>`;
+                        let cls = idx < this.state.rIdx ? 'group-item done-item' : idx === this.state.rIdx ? 'group-item active-right-item' : 'group-item';
+                        return `<div class="${cls}"><div style="overflow:hidden; text-overflow:ellipsis; white-space:nowrap;">${this.escapeHtml(track.title)}</div>${badge}</div>`;
+                    }).join('');
+                }
+
+                const mergedEl = document.getElementById('merged-group-list');
+                if (mergedEl && this.state.mergedChunk.length > 0) {
+                    mergedEl.innerHTML = this.state.mergedChunk.map((track, idx) => `
+                        <div class="group-item merged-item">
+                            <div style="overflow:hidden; text-overflow:ellipsis; white-space:nowrap;">
+                                <span style="color:var(--accent-color); font-weight:bold; margin-right:0.3rem;">#${idx + 1}</span>
+                                ${this.escapeHtml(track.title)}
+                            </div>
+                        </div>
+                    `).join('');
+                }
+
+                // --- ADD THIS SECTION TO AUTO-CENTER CURRENT ACTIVE ITEMS ---
+                requestAnimationFrame(() => {
+                    const activeLeft = leftEl?.querySelector('.active-left-item');
+                    if (activeLeft) {
+                        activeLeft.scrollIntoView({ behavior: 'smooth', block: 'center', inline: 'nearest', container: 'nearest' });
+                    }
+                    const activeRight = rightEl?.querySelector('.active-right-item');
+                    if (activeRight) {
+                        activeRight.scrollIntoView({ behavior: 'smooth', block: 'center', inline: 'nearest', container: 'nearest' });
+                    }
+                });
+            }
+
+            renderQuickSortLists() {
+                const candidateEl = document.getElementById('quicksort-candidate-list');
+                const p = this.state.currentPartition;
+                if (!candidateEl || !p) return;
+
+                let html = '';
+                for (let idx = p.low; idx <= p.high; idx++) {
+                    const track = p.arr[idx];
+                    let badge = '';
+                    let cls = 'group-item';
+
+                    if (idx === p.pivotIdx) {
+                        cls += ' active-left-item';
+                        badge = `<span class="badge-active badge-pivot">PIVOT</span>`;
+                    } else if (idx === p.comparingIdx) {
+                        cls += ' active-right-item';
+                        badge = `<span class="badge-active badge-right">COMPARE [U/O]</span>`;
+                    } else if (idx < p.comparingIdx) {
+                        cls += ' done-item';
+                        badge = `<span class="badge-active badge-done">CHECKED</span>`;
+                    } else {
+                        badge = `<span class="badge-active badge-queued">QUEUED</span>`;
+                    }
+
+                    html += `<div class="${cls}"><div style="overflow:hidden; text-overflow:ellipsis; white-space:nowrap;">${this.escapeHtml(track.title)}</div>${badge}</div>`;
+                }
+                candidateEl.innerHTML = html;
+            }
+
+            displayResults(sorted) {
+                this.switchView('results');
+                const list = document.getElementById('songs-results');
+                if (list) {
+                    list.innerHTML = sorted.map((t, i) => `
+                        <li class="ranked-item">
+                            <span class="rank-number">#${i + 1}</span>
+                            <div>${this.escapeHtml(t.title)}</div>
+                        </li>
+                    `).join('');
+                }
+            }
+
+            exportToCSV() {
+                const items = this.state.algorithm === 'mergesort' ? this.state.workArr : this.state.quickItems;
+                if (!items || items.length === 0) return;
+
+                let csv = "Rank,Track Title,Spotify URL\n";
+                items.forEach((t, i) => {
+                    csv += `${i + 1},"${t.title.replace(/"/g, '""')}",${t.isSpotify ? t.originalUrl : "Plain Text"}\n`;
+                });
+
+                const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+                const url = URL.createObjectURL(blob);
+                const a = document.createElement('a');
+                a.href = url;
+                a.download = 'spotify_ranked_results.csv';
+                document.body.appendChild(a);
+                a.click();
+                document.body.removeChild(a);
+            }
+
+            copyResultsToClipboard() {
+                const items = this.state.algorithm === 'mergesort' ? this.state.workArr : this.state.quickItems;
+                if (!items || items.length === 0) return;
+
+                let text = "Spotify Ranked Results:\n\n";
+                items.forEach((t, i) => { text += `${i + 1}. ${t.title}\n`; });
+
+                navigator.clipboard.writeText(text).then(() => alert('Results copied to clipboard!'));
+            }
+
+            escapeHtml(str) {
+                if (!str) return '';
+                return str.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;").replace(/'/g, "&#039;");
+            }
+        }
+
+        // Initialize Application Singleton
+        const App = new SortingApp();
+        window.addEventListener('DOMContentLoaded', () => App.init());
+    </script>
+</body>
+
+</html>
